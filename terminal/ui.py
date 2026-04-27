@@ -12,16 +12,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Tuple, Optional
 
-H = "─"
-V = "│"
-TL = "┌"
-TR = "┐"
-BL = "└"
-BR = "┘"
-LT = "├"
-RT = "┤"
-TT = "┬"
-BT = "┴"
+H   = "─"
+V   = "│"
+TL  = "┌"
+TR  = "┐"
+BL  = "└"
+BR  = "┘"
+LT  = "├"
+RT  = "┤"
+TT  = "┬"
+BT  = "┴"
 DBL = "═"
 DTL = "╔"
 DTR = "╗"
@@ -42,10 +42,10 @@ CP_HDR = 8
 CP_ORANGE2 = 9
 CP_SELECTED = 10
 
-ROLE_USER      = "user"
+ROLE_USER = "user"
 ROLE_ASSISTANT = "assistant"
-ROLE_SYSTEM    = "system"
-ROLE_ERROR     = "error"
+ROLE_SYSTEM = "system"
+ROLE_ERROR = "error"
 
 class CodoUI:
     def __init__(
@@ -63,12 +63,60 @@ class CodoUI:
         self.messages: List[Tuple[str, str]] = []
         self.input_buffer = ""
         self.cursor_pos = 0
+        self.chat_scroll = 0
+        self.file_scroll = 0
+        self.selected_file: Optional[Path] = None
+        self.thinking = False
+        self.think_frame = 0
         self.running = True
+        self.agent_state = "AWAITING INPUT"
         self.session_start = datetime.now()
+        self._history: List[str] = []
+        self._hist_idx = -1
+        self.expanded_paths = set()
+        self.focused_panel = "chat"
 
-        self.h = self.w = 0
-        self._compute_layout()
+        self.metrics = {
+            "cpu": [0.25, 0.40, 0.55, 0.35, 0.65, 0.50, 0.45],
+            "mem_used": 2.0,
+            "mem_total": 8.0,
+        }
+        self._metrick_lock = threading.Lock()
+        self._start_metrics_thread()
 
-        self._init_curses()
+        self.file_tree: List[Tuple[int, str, bool, Path]] = []
+        self._refresh_tree()
 
-        signal.signal(signal.SIGWINCH, self._on_sigwinch)
+
+def launch(
+    ai_callback: Callable[[str], str],
+    root_dir: str = ".",
+    project_name: str = "ROOT_DIR",
+):
+    def _main(stdscr):
+        ui = CodoUI(
+            stdscr=stdscr,
+            ai_callback=ai_callback,
+            root_dir=root_dir,
+            project_name=project_name,
+        )
+        ui.run()
+
+    locale.setlocale(locale.LC_ALL, '')
+    os.environ.setdefault("TERM", "xterm-256color")
+    curses.wrapper(_main)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
