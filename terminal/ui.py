@@ -12,20 +12,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Tuple, Optional
 
-H   = "─"
-V   = "│"
-TL  = "┌"
-TR  = "┐"
-BL  = "└"
-BR  = "┘"
-LT  = "├"
-RT  = "┤"
-TT  = "┬"
-BT  = "┴"
+H = "─"
+V = "│"
+TL = "┌"
+TR = "┐"
+BL = "└"
+BR = "┘"
+LT = "├"
+RT = "┤"
+TT = "┬"
+BT = "┴"
 DBL = "═"
 DTL = "╔"
 DTR = "╗"
-DBL2= "╚"
+DBL2 = "╚"
 DBR = "╝"
 BLOCK = "█"
 HALF = "░"
@@ -47,76 +47,70 @@ ROLE_ASSISTANT = "assistant"
 ROLE_SYSTEM = "system"
 ROLE_ERROR = "error"
 
-class CodoUI:
-    def __init__(
-        self,
-        stdscr,
-        ai_callback: Callable[[str], str],
-        root_dir: str = ".",
-        project_name: str = "ROOT_DIR",
-    ):
-        self.stdscr = stdscr
-        self.ai_callback = ai_callback
-        self.root_dir = Path(root_dir).resolve()
-        self.project_name = project_name
+def setup_colors():
+    curses.start_color()
+    curses.use_default_colors()
 
-        self.messages: List[Tuple[str, str]] = []
-        self.input_buffer = ""
-        self.cursor_pos = 0
-        self.chat_scroll = 0
-        self.file_scroll = 0
-        self.selected_file: Optional[Path] = None
-        self.thinking = False
-        self.think_frame = 0
-        self.running = True
-        self.agent_state = "AWAITING INPUT"
-        self.session_start = datetime.now()
-        self._history: List[str] = []
-        self._hist_idx = -1
-        self.expanded_paths = set()
-        self.focused_panel = "chat"
+    can_custom = curses.can_change_color() and curses.COLORS >= 256
 
-        self.metrics = {
-            "cpu": [0.25, 0.40, 0.55, 0.35, 0.65, 0.50, 0.45],
-            "mem_used": 2.0,
-            "mem_total": 8.0,
-        }
-        self._metrick_lock = threading.Lock()
-        self._start_metrics_thread()
+    if can_custom:
+        curses.init_color(16, 1000, 430, 0)
+        OG = 16
+    else:
+        OG = curses.COLOR_YELLOW
 
-        self.file_tree: List[Tuple[int, str, bool, Path]] = []
-        self._refresh_tree()
+    curses.init_pair(CP_ORANGE, OG, -1)
 
+def safestr(win, y: int, x: int, text: str, attr: int = 0):
+    try:
+        max_y, max_x = win.getmaxyx()
+        if y < 0 or y >= max_y or x >= max_x - 1:
+            return
+        if x < 0:
+            text = text[-x:]
+            x = 0
+        avail = max_x - x - 1
+        if avail <= 0:
+            return
+        win.addstr(y, x, text[:avail], attr)
+    except curses.error:
+        pass
+def draw_border(win, title: str = "", title_attr: int = 0):
+    h, w = win.getmaxyx()
+    ca = curses.color_pair(CP_ORANGE)
 
-def launch(
-    ai_callback: Callable[[str], str],
-    root_dir: str = ".",
-    project_name: str = "ROOT_DIR",
-):
-    def _main(stdscr):
-        ui = CodoUI(
-            stdscr=stdscr,
-            ai_callback=ai_callback,
-            root_dir=root_dir,
-            project_name=project_name,
-        )
-        ui.run()
+    safestr(win, 0, 0, TL + H * (w - 2) + TR, ca)
+    safestr(win, h -1, 0, BL + H * (w - 2) + BR, ca)
 
-    locale.setlocale(locale.LC_ALL, '')
-    os.environ.setdefault("TERM", "xterm-256color")
-    curses.wrapper(_main)
+    for y in range(1, h - 1):
+        safestr(win, y, 0, V, ca)
+        safestr(win, y, w - 1, V, ca)
 
+    if title:
+        s = f" {title} "
+        tx = max(2, (w - len(s)) // 2)
+        safestr(win, 0, tx, s,
+                title_attr or (curses.color_pair(CP_ORANGE) | curses.A_BOLD))
+        
+def main(stdscr):
+    curses.curs_set(0)
+    setup_colors()
 
+    while True:
+        stdscr.clear()
+        h, w = stdscr.getmaxyx()
 
+        draw_border(stdscr, "ORIGIN AI")
 
+        msg = "press 'q' to quit"
+        safestr(stdscr, h // 2, (w - len(msg)) // 2, msg,
+                curses.color_pair(CP_ORANGE))
+        
+        stdscr.refresh()
 
+        key = stdscr.getch()
+        if key == ord('q'):
+            break
 
-
-
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    curses.wrapper(main)

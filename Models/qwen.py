@@ -20,8 +20,3 @@ def qwen(prompt):
         stream=False,
     )
     return (response.choices[0].message.content)
-
-'''
-prompt = input(">>> ")
-print("JARVIS: ", qwen(prompt))
-'''
