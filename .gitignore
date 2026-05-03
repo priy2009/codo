@@ -1,4 +1,4 @@
-# ماحول variables
+# environment variables
 .env
 .env.*
 *.env
